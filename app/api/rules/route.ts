@@ -7,7 +7,6 @@ export async function GET() {
     try {
         await connectToDatabase();
 
-        // 1. Fetch live media IDs from Instagram Graph API to check for deletions
         const token = process.env.IG_ACCESS_TOKEN;
         const igRes = await fetch(
             `https://graph.instagram.com/v25.0/me/media?fields=id&limit=50&access_token=${token}`,
@@ -17,23 +16,16 @@ export async function GET() {
         if (igRes.ok) {
             const igData = await igRes.json();
             const liveMediaIds = new Set((igData.data || []).map((m: any) => m.id));
-
-            // 2. Find all rules currently stored in MongoDB
             const storedRules = await ReelRule.find({}).lean();
-
-            // 3. Identify rules whose media no longer exists on Instagram
             const staleMediaIds = storedRules
                 .map((r) => r.mediaId)
                 .filter((mediaId) => !liveMediaIds.has(mediaId));
 
-            // 4. Automatically purge stale/deleted Reel triggers from MongoDB
             if (staleMediaIds.length > 0) {
                 await ReelRule.deleteMany({ mediaId: { $in: staleMediaIds } });
-                console.log(`🗑️ Auto-cleaned triggers for deleted Reels:`, staleMediaIds);
             }
         }
 
-        // Return the fresh, cleaned list of rules
         const rules = await ReelRule.find({}).sort({ updatedAt: -1 }).lean();
         return NextResponse.json({ rules });
     } catch (error: any) {
@@ -41,10 +33,8 @@ export async function GET() {
     }
 }
 
-// ... keep your POST and DELETE methods below
-
-// Create or update triggers for a specific Reel
 export async function POST(req: NextRequest) {
+    await connection();
     try {
         await connectToDatabase();
         const body = await req.json();
@@ -59,6 +49,9 @@ export async function POST(req: NextRequest) {
             .map((t: any) => ({
                 keyword: t.keyword.trim().toLowerCase(),
                 replyMessage: t.replyMessage.trim(),
+                buttonTitle: t.buttonTitle ? t.buttonTitle.trim() : "",
+                buttonUrl: t.buttonUrl ? t.buttonUrl.trim() : "",
+                publicReplyMessage: t.publicReplyMessage ? t.publicReplyMessage.trim() : "",
             }));
 
         const updated = await ReelRule.findOneAndUpdate(
@@ -82,8 +75,8 @@ export async function POST(req: NextRequest) {
     }
 }
 
-// Delete a Reel's configuration completely
 export async function DELETE(req: NextRequest) {
+    await connection();
     try {
         await connectToDatabase();
         const mediaId = req.nextUrl.searchParams.get("mediaId");

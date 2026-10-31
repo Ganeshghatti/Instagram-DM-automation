@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
-import { ReelRule, ProcessedComment } from "@/models/Schema";
+import { ReelRule, ProcessedComment, ITrigger } from "@/models/Schema";
 
-// 1. WEBHOOK VERIFICATION (GET)
 export async function GET(req: NextRequest) {
     const searchParams = req.nextUrl.searchParams;
     const mode = searchParams.get("hub.mode");
@@ -15,7 +14,6 @@ export async function GET(req: NextRequest) {
     return new NextResponse("Forbidden", { status: 403 });
 }
 
-// 2. COMMENT EVENT LISTENER (POST)
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
@@ -61,30 +59,90 @@ async function processCommentEvent(commentData: any) {
     }
 
     const lowerComment = commentText.toLowerCase();
-    const matchedTrigger = reelRule.triggers.find((t) =>
+    const matchedTrigger = reelRule.triggers.find((t: ITrigger) =>
         lowerComment.includes(t.keyword.toLowerCase())
     );
 
     if (!matchedTrigger) return;
 
-    const url = "https://graph.instagram.com/v25.0/me/messages";
+    const token = process.env.IG_ACCESS_TOKEN;
+    const hasCtaButton = Boolean(
+        matchedTrigger.buttonTitle?.trim() && matchedTrigger.buttonUrl?.trim()
+    );
+
+    // 1. Build DM Payload
+    const dmPayload = hasCtaButton
+        ? {
+            recipient: { comment_id: commentId },
+            message: {
+                attachment: {
+                    type: "template",
+                    payload: {
+                        template_type: "generic",
+                        elements: [
+                            {
+                                title: matchedTrigger.replyMessage.slice(0, 80),
+                                buttons: [
+                                    {
+                                        type: "web_url",
+                                        url: matchedTrigger.buttonUrl!.trim(),
+                                        title: matchedTrigger.buttonTitle!.trim().slice(0, 20),
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                },
+            },
+        }
+        : {
+            recipient: { comment_id: commentId },
+            message: { text: matchedTrigger.replyMessage },
+        };
+
+    let logReplySummary = hasCtaButton
+        ? `${matchedTrigger.replyMessage} [CTA: ${matchedTrigger.buttonTitle}]`
+        : matchedTrigger.replyMessage;
+
     try {
-        const response = await fetch(url, {
+        // 2. Dispatch DM
+        const dmRes = await fetch("https://graph.instagram.com/v25.0/me/messages", {
             method: "POST",
             headers: {
-                Authorization: `Bearer ${process.env.IG_ACCESS_TOKEN}`,
+                Authorization: `Bearer ${token}`,
                 "Content-Type": "application/json",
             },
-            body: JSON.stringify({
-                recipient: { comment_id: commentId },
-                message: { text: matchedTrigger.replyMessage },
-            }),
+            body: JSON.stringify(dmPayload),
         });
 
-        const resData = await response.json();
+        const dmData = await dmRes.json();
+        if (!dmRes.ok) {
+            throw new Error(dmData?.error?.message || "Graph API DM error");
+        }
 
-        if (!response.ok) {
-            throw new Error(resData?.error?.message || "Graph API error");
+        // 3. Dispatch Public Comment Reply (if configured)
+        if (matchedTrigger.publicReplyMessage?.trim()) {
+            try {
+                const publicRes = await fetch(
+                    `https://graph.instagram.com/v25.0/${commentId}/replies`,
+                    {
+                        method: "POST",
+                        headers: {
+                            Authorization: `Bearer ${token}`,
+                            "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify({
+                            message: matchedTrigger.publicReplyMessage.trim(),
+                        }),
+                    }
+                );
+
+                if (publicRes.ok) {
+                    logReplySummary += ` | Public: "${matchedTrigger.publicReplyMessage.trim()}"`;
+                }
+            } catch (publicErr: any) {
+                console.warn("Public reply dispatch warning:", publicErr.message);
+            }
         }
 
         await ProcessedComment.create({
@@ -93,18 +151,18 @@ async function processCommentEvent(commentData: any) {
             username,
             commentText,
             matchedKeyword: matchedTrigger.keyword,
-            replySent: matchedTrigger.replyMessage,
+            replySent: logReplySummary,
             status: "sent",
         });
     } catch (err: any) {
-        console.error(`Failed DM to @${username}:`, err.message);
+        console.error(`Failed to dispatch for @${username}:`, err.message);
         await ProcessedComment.create({
             commentId,
             mediaId,
             username,
             commentText,
             matchedKeyword: matchedTrigger.keyword,
-            replySent: matchedTrigger.replyMessage,
+            replySent: logReplySummary,
             status: "failed",
             errorMessage: err.message,
         });

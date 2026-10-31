@@ -3,6 +3,9 @@ import mongoose, { Schema, Document, Model } from "mongoose";
 export interface ITrigger {
     keyword: string;
     replyMessage: string;
+    buttonTitle?: string;
+    buttonUrl?: string;
+    publicReplyMessage?: string;
 }
 
 export interface IReelRule extends Document {
@@ -32,6 +35,9 @@ const TriggerSchema = new Schema<ITrigger>(
     {
         keyword: { type: String, required: true, lowercase: true, trim: true },
         replyMessage: { type: String, required: true, trim: true },
+        buttonTitle: { type: String, trim: true, default: "" },
+        buttonUrl: { type: String, trim: true, default: "" },
+        publicReplyMessage: { type: String, trim: true, default: "" },
     },
     { _id: false }
 );
@@ -62,6 +68,11 @@ const ProcessedCommentSchema = new Schema<IProcessedComment>(
     },
     { timestamps: true }
 );
+
+if (process.env.NODE_ENV !== "production") {
+    delete mongoose.models.ReelRule;
+    delete mongoose.models.ProcessedComment;
+}
 
 export const ReelRule: Model<IReelRule> =
     mongoose.models.ReelRule || mongoose.model<IReelRule>("ReelRule", ReelRuleSchema);

@@ -1,6 +1,9 @@
 export interface Trigger {
     keyword: string;
     replyMessage: string;
+    buttonTitle?: string;
+    buttonUrl?: string;
+    publicReplyMessage?: string;
 }
 
 export interface ReelRule {
@@ -11,6 +14,7 @@ export interface ReelRule {
     thumbnailUrl?: string;
     isActive: boolean;
     triggers: Trigger[];
+    updatedAt?: string;
 }
 
 export interface IgMedia {
