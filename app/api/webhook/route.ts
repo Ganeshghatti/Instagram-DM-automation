@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
 import { ReelRule, ProcessedComment, ITrigger } from "@/models/Schema";
+import { replaceTokens } from "@/lib/tokens";
 
 export async function GET(req: NextRequest) {
     const searchParams = req.nextUrl.searchParams;
@@ -43,7 +44,7 @@ async function processCommentEvent(commentData: any) {
     const commentId = commentData?.id;
     const commentText = (commentData?.text || "").trim();
     const commenterId = commentData?.from?.id;
-    const username = commentData?.from?.username || "instagram_user";
+    const username = commentData?.from?.username || "friend";
     const mediaId = commentData?.media?.id;
 
     if (!commentId || !mediaId || commenterId === process.env.IG_USER_ID) {
@@ -66,11 +67,20 @@ async function processCommentEvent(commentData: any) {
     if (!matchedTrigger) return;
 
     const token = process.env.IG_ACCESS_TOKEN;
+
+    // 1. Resolve Dynamic Tokens
+    const tokenCtx = {
+        username,
+        keyword: matchedTrigger.keyword,
+    };
+
+    const finalDmText = replaceTokens(matchedTrigger.replyMessage, tokenCtx);
+
     const hasCtaButton = Boolean(
         matchedTrigger.buttonTitle?.trim() && matchedTrigger.buttonUrl?.trim()
     );
 
-    // 1. DM payload
+    // 2. Build DM Payload
     const dmPayload = hasCtaButton
         ? {
             recipient: { comment_id: commentId },
@@ -81,7 +91,7 @@ async function processCommentEvent(commentData: any) {
                         template_type: "generic",
                         elements: [
                             {
-                                title: matchedTrigger.replyMessage.slice(0, 80),
+                                title: finalDmText.slice(0, 80),
                                 buttons: [
                                     {
                                         type: "web_url",
@@ -97,15 +107,15 @@ async function processCommentEvent(commentData: any) {
         }
         : {
             recipient: { comment_id: commentId },
-            message: { text: matchedTrigger.replyMessage },
+            message: { text: finalDmText },
         };
 
     let logReplySummary = hasCtaButton
-        ? `${matchedTrigger.replyMessage} [CTA: ${matchedTrigger.buttonTitle}]`
-        : matchedTrigger.replyMessage;
+        ? `${finalDmText} [CTA: ${matchedTrigger.buttonTitle}]`
+        : finalDmText;
 
     try {
-        // 2. Send DM
+        // 3. Send Private DM
         const dmRes = await fetch("https://graph.instagram.com/v25.0/me/messages", {
             method: "POST",
             headers: {
@@ -120,11 +130,11 @@ async function processCommentEvent(commentData: any) {
             throw new Error(dmData?.error?.message || "Graph API DM error");
         }
 
-        // 3. Pick random public comment variant
+        // 4. Send Public Comment Reply (with token replacement)
         const variations = matchedTrigger.publicReplyMessages || [];
         if (variations.length > 0) {
-            const selectedPublicReply =
-                variations[Math.floor(Math.random() * variations.length)];
+            const rawVariation = variations[Math.floor(Math.random() * variations.length)];
+            const finalPublicReply = replaceTokens(rawVariation, tokenCtx);
 
             try {
                 const publicRes = await fetch(
@@ -135,12 +145,12 @@ async function processCommentEvent(commentData: any) {
                             Authorization: `Bearer ${token}`,
                             "Content-Type": "application/json",
                         },
-                        body: JSON.stringify({ message: selectedPublicReply }),
+                        body: JSON.stringify({ message: finalPublicReply }),
                     }
                 );
 
                 if (publicRes.ok) {
-                    logReplySummary += ` | Public: "${selectedPublicReply}"`;
+                    logReplySummary += ` | Public: "${finalPublicReply}"`;
                 }
             } catch (publicErr: any) {
                 console.warn("Public reply dispatch warning:", publicErr.message);

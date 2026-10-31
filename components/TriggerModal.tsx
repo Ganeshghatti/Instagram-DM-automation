@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Plus, Trash2, X, Check, Link as LinkIcon, Shuffle } from "lucide-react";
+import { Plus, Trash2, X, Check, Link as LinkIcon, Shuffle, Sparkles } from "lucide-react";
 import { IgMedia, ReelRule, Trigger } from "@/types/dashboard";
 
 interface TriggerModalProps {
@@ -40,13 +40,13 @@ export default function TriggerModal({
       setTriggers([
         {
           keyword: "link",
-          replyMessage: "Hey! Tap below to open the link from my Reel:",
+          replyMessage: "Hey {username}! Tap below for your link:",
           buttonTitle: "Open Link",
           buttonUrl: "",
           publicReplyMessages: [
-            "Sent to your DMs! Check requests 📥",
-            "Delivered to your inbox! Check message requests 🚀",
-            "Sent over! Check your direct messages ✨",
+            "{@username} Sent to your DMs! Check requests 📥",
+            "Hey {@username}, just dropped it in your inbox! 🚀",
+            "Sent over to you {username}! Check direct messages ✨",
           ],
         },
       ]);
@@ -60,6 +60,23 @@ export default function TriggerModal({
     const updated = [...triggers];
     updated[index] = { ...updated[index], [field]: value };
     setTriggers(updated);
+  };
+
+  const insertToken = (index: number, field: "replyMessage" | "publicReplyMessages", token: string) => {
+    if (field === "replyMessage") {
+      const current = triggers[index].replyMessage || "";
+      updateTrigger(index, "replyMessage", current ? `${current} ${token}` : token);
+    } else {
+      const currentArr = triggers[index].publicReplyMessages || [];
+      if (currentArr.length === 0) {
+        updateTrigger(index, "publicReplyMessages", [`${token} Check your DMs!`]);
+      } else {
+        const lastIdx = currentArr.length - 1;
+        const updatedArr = [...currentArr];
+        updatedArr[lastIdx] = `${updatedArr[lastIdx]} ${token}`;
+        updateTrigger(index, "publicReplyMessages", updatedArr);
+      }
+    }
   };
 
   const handleSave = async () => {
@@ -189,14 +206,26 @@ export default function TriggerModal({
                   </button>
                 </div>
 
-                {/* 1. Private DM Copy */}
+                {/* 1. Private DM Copy with Tokens */}
                 <div>
-                  <label className="text-[10px] font-bold uppercase text-[#65676B] block mb-1">
-                    1. Private DM Text (Max 80 chars if using button)
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[10px] font-bold uppercase text-[#65676B]">
+                      1. Private DM Text
+                    </label>
+                    <div className="flex items-center gap-1">
+                      <Sparkles className="h-2.5 w-2.5 text-[#0866FF]" />
+                      <button
+                        type="button"
+                        onClick={() => insertToken(idx, "replyMessage", "{username}")}
+                        className="text-[10px] font-mono text-[#0866FF] hover:underline cursor-pointer"
+                      >
+                        +{"{username}"}
+                      </button>
+                    </div>
+                  </div>
                   <textarea
                     rows={2}
-                    placeholder="Direct Message reply text..."
+                    placeholder="Hey {username}! Here is your link..."
                     value={item.replyMessage}
                     onChange={(e) =>
                       updateTrigger(idx, "replyMessage", e.target.value)
@@ -243,19 +272,25 @@ export default function TriggerModal({
                   </div>
                 </div>
 
-                {/* 3. Rotating Public Comment Replies (Spintax) */}
+                {/* 3. Rotating Public Comment Replies with Mention Tokens */}
                 <div className="p-2.5 rounded bg-[#F7F8FA] border border-[#EBEDF0] space-y-1.5">
                   <div className="flex items-center justify-between">
                     <span className="flex items-center gap-1 text-[10px] font-bold uppercase text-[#65676B]">
-                      <Shuffle className="h-3 w-3 text-[#31A24C]" /> 3. Rotating Public Replies (1 per line)
+                      <Shuffle className="h-3 w-3 text-[#31A24C]" /> 3. Rotating Public Replies
                     </span>
-                    <span className="text-[10px] font-bold text-[#31A24C]">
-                      {item.publicReplyMessages?.length || 0} variations
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => insertToken(idx, "publicReplyMessages", "{@username}")}
+                        className="text-[10px] font-mono text-[#31A24C] font-semibold hover:underline cursor-pointer"
+                      >
+                        +{"{@username}"}
+                      </button>
+                    </div>
                   </div>
                   <textarea
                     rows={3}
-                    placeholder={"Sent to your DMs! Check requests 📥\nDelivered! Check your inbox 🚀\nSent over! Check requests ✨"}
+                    placeholder={"{@username} Sent to your DMs! 📥\nDelivered to you {username}! 🚀\nSent over {@username}! ✨"}
                     value={(item.publicReplyMessages || []).join("\n")}
                     onChange={(e) => {
                       const lines = e.target.value.split("\n");
@@ -264,7 +299,7 @@ export default function TriggerModal({
                     className="w-full px-2.5 py-1.5 rounded bg-white border border-[#CCD0D5] text-[11px] focus:outline-none focus:border-[#0866FF] font-mono leading-relaxed resize-none"
                   />
                   <p className="text-[10px] text-[#8A8D91]">
-                    Randomly picks one variation per comment to avoid Meta spam detection.
+                    Use <code>&#123;@username&#125;</code> to tag the user publicly or <code>&#123;username&#125;</code> for plain text.
                   </p>
                 </div>
               </div>
