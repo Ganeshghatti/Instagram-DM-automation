@@ -44,21 +44,25 @@ async function processCommentEvent(commentData: any) {
     const commentId = commentData?.id;
     const commentText = (commentData?.text || "").trim();
     const commenterId = commentData?.from?.id;
-    const username = commentData?.from?.username || "friend";
+    const username = commentData?.from?.username || "instagram_user";
     const mediaId = commentData?.media?.id;
 
+    // Prevent processing self-comments or malformed events
     if (!commentId || !mediaId || commenterId === process.env.IG_USER_ID) {
         return;
     }
 
+    // Prevent duplicate execution
     const alreadyProcessed = await ProcessedComment.findOne({ commentId }).lean();
     if (alreadyProcessed) return;
 
+    // Lookup active configuration rule for this Reel
     const reelRule = await ReelRule.findOne({ mediaId, isActive: true }).lean();
     if (!reelRule || !reelRule.triggers || reelRule.triggers.length === 0) {
         return;
     }
 
+    // Find matching keyword trigger
     const lowerComment = commentText.toLowerCase();
     const matchedTrigger = reelRule.triggers.find((t: ITrigger) =>
         lowerComment.includes(t.keyword.toLowerCase())
@@ -69,53 +73,57 @@ async function processCommentEvent(commentData: any) {
     const token = process.env.IG_ACCESS_TOKEN;
 
     // 1. Resolve Dynamic Tokens
-    const tokenCtx = {
-        username,
-        keyword: matchedTrigger.keyword,
-    };
-
+    const tokenCtx = { username, keyword: matchedTrigger.keyword };
     const finalDmText = replaceTokens(matchedTrigger.replyMessage, tokenCtx);
 
+    // Validate CTA button
     const hasCtaButton = Boolean(
         matchedTrigger.buttonTitle?.trim() && matchedTrigger.buttonUrl?.trim()
     );
+    const rawButtonUrl = matchedTrigger.buttonUrl?.trim() || "";
+    const validButtonUrl =
+        rawButtonUrl.startsWith("http://") || rawButtonUrl.startsWith("https://")
+            ? rawButtonUrl
+            : rawButtonUrl
+                ? `https://${rawButtonUrl}`
+                : "";
+    const buttonTitle = matchedTrigger.buttonTitle?.trim() || "";
 
-    // 2. Build DM Payload
-    const dmPayload = hasCtaButton
-        ? {
-            recipient: { comment_id: commentId },
-            message: {
-                attachment: {
-                    type: "template",
-                    payload: {
-                        template_type: "generic",
-                        elements: [
-                            {
-                                title: finalDmText.slice(0, 80),
-                                buttons: [
-                                    {
-                                        type: "web_url",
-                                        url: matchedTrigger.buttonUrl!.trim(),
-                                        title: matchedTrigger.buttonTitle!.trim().slice(0, 20),
-                                    },
-                                ],
-                            },
-                        ],
+    // 2. Build DM Message Payload
+    const dmPayload =
+        hasCtaButton && validButtonUrl
+            ? {
+                recipient: { comment_id: commentId },
+                message: {
+                    attachment: {
+                        type: "template",
+                        payload: {
+                            template_type: "generic",
+                            elements: [
+                                {
+                                    title: finalDmText.slice(0, 80),
+                                    buttons: [
+                                        {
+                                            type: "web_url",
+                                            url: validButtonUrl,
+                                            title: buttonTitle.slice(0, 20),
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
                     },
                 },
-            },
-        }
-        : {
-            recipient: { comment_id: commentId },
-            message: { text: finalDmText },
-        };
+            }
+            : {
+                recipient: { comment_id: commentId },
+                message: { text: finalDmText },
+            };
 
-    let logReplySummary = hasCtaButton
-        ? `${finalDmText} [CTA: ${matchedTrigger.buttonTitle}]`
-        : finalDmText;
+    let publicReplyRecorded = "";
 
     try {
-        // 3. Send Private DM
+        // 3. Dispatch Private DM via Instagram Graph API
         const dmRes = await fetch("https://graph.instagram.com/v25.0/me/messages", {
             method: "POST",
             headers: {
@@ -127,13 +135,14 @@ async function processCommentEvent(commentData: any) {
 
         const dmData = await dmRes.json();
         if (!dmRes.ok) {
-            throw new Error(dmData?.error?.message || "Graph API DM error");
+            throw new Error(dmData?.error?.message || "Graph API DM dispatch failed");
         }
 
-        // 4. Send Public Comment Reply (with token replacement)
+        // 4. Dispatch Public Comment Reply (if configured)
         const variations = matchedTrigger.publicReplyMessages || [];
         if (variations.length > 0) {
-            const rawVariation = variations[Math.floor(Math.random() * variations.length)];
+            const rawVariation =
+                variations[Math.floor(Math.random() * variations.length)];
             const finalPublicReply = replaceTokens(rawVariation, tokenCtx);
 
             try {
@@ -150,31 +159,38 @@ async function processCommentEvent(commentData: any) {
                 );
 
                 if (publicRes.ok) {
-                    logReplySummary += ` | Public: "${finalPublicReply}"`;
+                    publicReplyRecorded = finalPublicReply;
                 }
             } catch (publicErr: any) {
                 console.warn("Public reply dispatch warning:", publicErr.message);
             }
         }
 
+        // 5. Save Granular Webhook Delivery Audit Log
         await ProcessedComment.create({
             commentId,
             mediaId,
+            mediaPermalink: reelRule.permalink || "",
             username,
             commentText,
             matchedKeyword: matchedTrigger.keyword,
-            replySent: logReplySummary,
+            replySent: finalDmText,
+            publicReplySent: publicReplyRecorded || "",
+            ctaUrl: validButtonUrl || "",
             status: "sent",
         });
     } catch (err: any) {
-        console.error(`Failed to dispatch for @${username}:`, err.message);
+        console.error(`Dispatch failed for @${username}:`, err.message);
         await ProcessedComment.create({
             commentId,
             mediaId,
+            mediaPermalink: reelRule.permalink || "",
             username,
             commentText,
             matchedKeyword: matchedTrigger.keyword,
-            replySent: logReplySummary,
+            replySent: finalDmText,
+            publicReplySent: publicReplyRecorded || "",
+            ctaUrl: validButtonUrl || "",
             status: "failed",
             errorMessage: err.message,
         });

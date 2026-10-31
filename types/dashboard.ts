@@ -34,10 +34,13 @@ export interface LogItem {
     _id: string;
     commentId: string;
     mediaId: string;
+    mediaPermalink?: string;
     username: string;
     commentText: string;
     matchedKeyword: string;
     replySent: string;
+    publicReplySent?: string;
+    ctaUrl?: string;
     status: "sent" | "failed";
     errorMessage?: string;
     createdAt: string;

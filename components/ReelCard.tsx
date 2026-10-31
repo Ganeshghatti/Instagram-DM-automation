@@ -23,7 +23,7 @@ export default function ReelCard({ reel, rule, onConfigure }: ReelCardProps) {
   return (
     <div className="bg-white rounded border border-[#DADDE1] flex flex-col justify-between overflow-hidden shadow-xs hover:border-[#BCC0C4] transition">
       <div>
-        {/* Card Header: Media ID & Webhook Status */}
+        {/* Header: ID & Webhook status */}
         <div className="px-3 py-2 border-b border-[#EBEDF0] bg-[#FAFBFC] flex items-center justify-between">
           <span
             style={{ fontFamily: "var(--font-mono)" }}
@@ -46,7 +46,7 @@ export default function ReelCard({ reel, rule, onConfigure }: ReelCardProps) {
           )}
         </div>
 
-        {/* Thumbnail & Caption */}
+        {/* Media Preview & Caption */}
         <div className="p-3.5 flex gap-3">
           <div className="h-16 w-14 rounded bg-[#F0F2F5] border border-[#DADDE1] overflow-hidden shrink-0">
             {thumb ? (
@@ -115,13 +115,17 @@ export default function ReelCard({ reel, rule, onConfigure }: ReelCardProps) {
           </div>
         </div>
 
-        {/* Configured Trigger Keywords */}
+        {/* Triggers Pill Container */}
         <div className="px-3.5 pb-3.5">
           <div className="rounded bg-[#F7F8FA] border border-[#EBEDF0] p-2.5 min-h-[42px] flex items-center">
             {hasTriggers && rule ? (
-              <div className="flex flex-wrap gap-1">
+              <div className="flex flex-wrap gap-1.5">
                 {rule.triggers.map((t, idx) => {
                   const hasCta = Boolean(t.buttonTitle?.trim() && t.buttonUrl?.trim());
+                  const hasPublic = Boolean(
+                    t.publicReplyMessages && t.publicReplyMessages.length > 0
+                  );
+
                   return (
                     <span
                       key={idx}
@@ -130,29 +134,24 @@ export default function ReelCard({ reel, rule, onConfigure }: ReelCardProps) {
                       title={
                         hasCta
                           ? `CTA Button: "${t.buttonTitle}" -> ${t.buttonUrl}`
-                          : `Text Reply: "${t.replyMessage}"`
+                          : `Reply: "${t.replyMessage}"`
                       }
                     >
                       {t.keyword}
-                      {hasCta && (
-                        <span className="text-[9px] font-bold text-[#0866FF]">
-                          ↗
-                        </span>
-                      )}
+                      {hasCta && <span className="font-bold">↗</span>}
+                      {hasPublic && <span className="text-[9px]">💬</span>}
                     </span>
                   );
                 })}
               </div>
             ) : (
-              <span className="text-[11px] text-[#8A8D91]">
-                No triggers bound
-              </span>
+              <span className="text-[11px] text-[#8A8D91]">No triggers bound</span>
             )}
           </div>
         </div>
       </div>
 
-      {/* Footer Action Button */}
+      {/* Footer Configure Button */}
       <div className="p-3 border-t border-[#EBEDF0] bg-[#FAFBFC]">
         <button
           onClick={() => onConfigure(reel)}

@@ -39,14 +39,14 @@ export default function TriggerModal({
     } else {
       setTriggers([
         {
-          keyword: "link",
-          replyMessage: "Hey {username}! Tap below for your link:",
-          buttonTitle: "Open Link",
+          keyword: "guide",
+          replyMessage: "Hey {username}! Tap below to view your guide:",
+          buttonTitle: "View Guide",
           buttonUrl: "",
           publicReplyMessages: [
-            "{@username} Sent to your DMs! Check requests 📥",
+            "{@username} Sent to your DMs! Check message requests 📥",
             "Hey {@username}, just dropped it in your inbox! 🚀",
-            "Sent over to you {username}! Check direct messages ✨",
+            "Sent over to you {username}! Check requests ✨",
           ],
         },
       ]);
@@ -62,7 +62,11 @@ export default function TriggerModal({
     setTriggers(updated);
   };
 
-  const insertToken = (index: number, field: "replyMessage" | "publicReplyMessages", token: string) => {
+  const insertToken = (
+    index: number,
+    field: "replyMessage" | "publicReplyMessages",
+    token: string
+  ) => {
     if (field === "replyMessage") {
       const current = triggers[index].replyMessage || "";
       updateTrigger(index, "replyMessage", current ? `${current} ${token}` : token);
@@ -120,6 +124,7 @@ export default function TriggerModal({
   return (
     <div className="fixed inset-0 z-50 bg-[#1C2B33]/40 backdrop-blur-[1px] flex justify-end">
       <div className="bg-white w-full max-w-md h-full flex flex-col shadow-2xl border-l border-[#DADDE1]">
+        {/* Header */}
         <div className="px-5 py-3 border-b border-[#DADDE1] flex items-center justify-between bg-[#FAFBFC]">
           <div>
             <span className="text-[14px] font-bold text-[#1C1E21]">
@@ -137,6 +142,7 @@ export default function TriggerModal({
           </button>
         </div>
 
+        {/* Body */}
         <div className="p-5 overflow-y-auto space-y-4 flex-1 bg-[#F7F8FA]">
           <div className="bg-white p-3 rounded border border-[#DADDE1] flex items-center justify-between">
             <span className="text-[12px] font-bold">Enable Webhook Listener</span>
@@ -186,19 +192,15 @@ export default function TriggerModal({
                     <input
                       type="text"
                       style={{ fontFamily: "var(--font-mono)" }}
-                      placeholder="e.g. link, guide"
+                      placeholder="e.g. guide, link"
                       value={item.keyword}
-                      onChange={(e) =>
-                        updateTrigger(idx, "keyword", e.target.value)
-                      }
+                      onChange={(e) => updateTrigger(idx, "keyword", e.target.value)}
                       className="w-full px-2.5 py-1 rounded border border-[#CCD0D5] text-[12px] focus:outline-none focus:border-[#0866FF]"
                     />
                   </div>
                   <button
                     type="button"
-                    onClick={() =>
-                      setTriggers(triggers.filter((_, i) => i !== idx))
-                    }
+                    onClick={() => setTriggers(triggers.filter((_, i) => i !== idx))}
                     className="mt-4 p-1 text-[#65676B] hover:text-[#E41E3F] cursor-pointer"
                     title="Remove rule"
                   >
@@ -206,7 +208,7 @@ export default function TriggerModal({
                   </button>
                 </div>
 
-                {/* 1. Private DM Copy with Tokens */}
+                {/* 1. Private DM Copy */}
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className="text-[10px] font-bold uppercase text-[#65676B]">
@@ -227,9 +229,7 @@ export default function TriggerModal({
                     rows={2}
                     placeholder="Hey {username}! Here is your link..."
                     value={item.replyMessage}
-                    onChange={(e) =>
-                      updateTrigger(idx, "replyMessage", e.target.value)
-                    }
+                    onChange={(e) => updateTrigger(idx, "replyMessage", e.target.value)}
                     className="w-full px-2.5 py-1.5 rounded border border-[#CCD0D5] text-[12px] focus:outline-none focus:border-[#0866FF] resize-none"
                   />
                 </div>
@@ -241,7 +241,7 @@ export default function TriggerModal({
                       <LinkIcon className="h-3 w-3 text-[#0866FF]" /> 2. CTA Button Card (Optional)
                     </span>
                     <span className="text-[10px] text-[#8A8D91]">
-                      Leave URL blank for text-only DM
+                      Leave URL blank for plain text
                     </span>
                   </div>
 
@@ -250,11 +250,9 @@ export default function TriggerModal({
                       <input
                         type="text"
                         maxLength={20}
-                        placeholder="Button Text"
+                        placeholder="Button Title"
                         value={item.buttonTitle || ""}
-                        onChange={(e) =>
-                          updateTrigger(idx, "buttonTitle", e.target.value)
-                        }
+                        onChange={(e) => updateTrigger(idx, "buttonTitle", e.target.value)}
                         className="w-full px-2 py-1 rounded bg-white border border-[#CCD0D5] text-[11px] focus:outline-none focus:border-[#0866FF]"
                       />
                     </div>
@@ -263,30 +261,26 @@ export default function TriggerModal({
                         type="url"
                         placeholder="https://example.com"
                         value={item.buttonUrl || ""}
-                        onChange={(e) =>
-                          updateTrigger(idx, "buttonUrl", e.target.value)
-                        }
+                        onChange={(e) => updateTrigger(idx, "buttonUrl", e.target.value)}
                         className="w-full px-2 py-1 rounded bg-white border border-[#CCD0D5] text-[11px] focus:outline-none focus:border-[#0866FF]"
                       />
                     </div>
                   </div>
                 </div>
 
-                {/* 3. Rotating Public Comment Replies with Mention Tokens */}
+                {/* 3. Rotating Public Comment Replies */}
                 <div className="p-2.5 rounded bg-[#F7F8FA] border border-[#EBEDF0] space-y-1.5">
                   <div className="flex items-center justify-between">
                     <span className="flex items-center gap-1 text-[10px] font-bold uppercase text-[#65676B]">
                       <Shuffle className="h-3 w-3 text-[#31A24C]" /> 3. Rotating Public Replies
                     </span>
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => insertToken(idx, "publicReplyMessages", "{@username}")}
-                        className="text-[10px] font-mono text-[#31A24C] font-semibold hover:underline cursor-pointer"
-                      >
-                        +{"{@username}"}
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => insertToken(idx, "publicReplyMessages", "{@username}")}
+                      className="text-[10px] font-mono text-[#31A24C] font-semibold hover:underline cursor-pointer"
+                    >
+                      +{"{@username}"}
+                    </button>
                   </div>
                   <textarea
                     rows={3}
@@ -299,7 +293,7 @@ export default function TriggerModal({
                     className="w-full px-2.5 py-1.5 rounded bg-white border border-[#CCD0D5] text-[11px] focus:outline-none focus:border-[#0866FF] font-mono leading-relaxed resize-none"
                   />
                   <p className="text-[10px] text-[#8A8D91]">
-                    Use <code>&#123;@username&#125;</code> to tag the user publicly or <code>&#123;username&#125;</code> for plain text.
+                    Enter one response per line. A random variation will be picked per comment.
                   </p>
                 </div>
               </div>
@@ -307,6 +301,7 @@ export default function TriggerModal({
           </div>
         </div>
 
+        {/* Footer */}
         <div className="px-5 py-3 border-t border-[#DADDE1] bg-white flex items-center justify-between">
           {existingRule ? (
             <button

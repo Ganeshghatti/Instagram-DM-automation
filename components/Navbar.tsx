@@ -27,7 +27,7 @@ export default function Navbar({
         <div>
           {/* Brand */}
           <div className="h-14 px-4 flex items-center gap-2.5 border-b border-white/10">
-            
+
             <span className="text-[14px] font-bold tracking-tight">The Squirrel Ops Console</span>
           </div>
 
@@ -39,11 +39,10 @@ export default function Navbar({
 
             <button
               onClick={() => setActiveTab("reels")}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-[13px] font-semibold transition ${
-                activeTab === "reels"
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-[13px] font-semibold transition ${activeTab === "reels"
                   ? "bg-[#0866FF] text-white"
                   : "text-[#CFD8DC] hover:bg-white/5 hover:text-white"
-              }`}
+                }`}
             >
               <span className="flex items-center gap-2">
                 <Film className="h-4 w-4" /> Reel Triggers
@@ -55,11 +54,10 @@ export default function Navbar({
 
             <button
               onClick={() => setActiveTab("logs")}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-[13px] font-semibold transition ${
-                activeTab === "logs"
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-[13px] font-semibold transition ${activeTab === "logs"
                   ? "bg-[#0866FF] text-white"
                   : "text-[#CFD8DC] hover:bg-white/5 hover:text-white"
-              }`}
+                }`}
             >
               <span className="flex items-center gap-2">
                 <Activity className="h-4 w-4" /> Webhook Logs

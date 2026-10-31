@@ -22,10 +22,13 @@ export interface IReelRule extends Document {
 export interface IProcessedComment extends Document {
     commentId: string;
     mediaId: string;
+    mediaPermalink?: string;
     username: string;
     commentText: string;
     matchedKeyword: string;
     replySent: string;
+    publicReplySent?: string;
+    ctaUrl?: string;
     status: "sent" | "failed";
     errorMessage?: string;
     createdAt: Date;
@@ -59,10 +62,13 @@ const ProcessedCommentSchema = new Schema<IProcessedComment>(
     {
         commentId: { type: String, required: true, unique: true, index: true },
         mediaId: { type: String, required: true },
+        mediaPermalink: { type: String, default: "" },
         username: { type: String, required: true },
         commentText: { type: String, required: true },
         matchedKeyword: { type: String, required: true },
         replySent: { type: String, required: true },
+        publicReplySent: { type: String, default: "" },
+        ctaUrl: { type: String, default: "" },
         status: { type: String, enum: ["sent", "failed"], default: "sent" },
         errorMessage: { type: String },
     },
