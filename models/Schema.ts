@@ -5,7 +5,7 @@ export interface ITrigger {
     replyMessage: string;
     buttonTitle?: string;
     buttonUrl?: string;
-    publicReplyMessage?: string;
+    publicReplyMessages?: string[];
 }
 
 export interface IReelRule extends Document {
@@ -37,7 +37,7 @@ const TriggerSchema = new Schema<ITrigger>(
         replyMessage: { type: String, required: true, trim: true },
         buttonTitle: { type: String, trim: true, default: "" },
         buttonUrl: { type: String, trim: true, default: "" },
-        publicReplyMessage: { type: String, trim: true, default: "" },
+        publicReplyMessages: { type: [String], default: [] },
     },
     { _id: false }
 );

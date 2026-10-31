@@ -46,13 +46,24 @@ export async function POST(req: NextRequest) {
 
         const sanitizedTriggers = triggers
             .filter((t: any) => t.keyword?.trim() && t.replyMessage?.trim())
-            .map((t: any) => ({
-                keyword: t.keyword.trim().toLowerCase(),
-                replyMessage: t.replyMessage.trim(),
-                buttonTitle: t.buttonTitle ? t.buttonTitle.trim() : "",
-                buttonUrl: t.buttonUrl ? t.buttonUrl.trim() : "",
-                publicReplyMessage: t.publicReplyMessage ? t.publicReplyMessage.trim() : "",
-            }));
+            .map((t: any) => {
+                let replies: string[] = [];
+                if (Array.isArray(t.publicReplyMessages)) {
+                    replies = t.publicReplyMessages
+                        .map((r: string) => r.trim())
+                        .filter((r: string) => r.length > 0);
+                } else if (typeof t.publicReplyMessage === "string" && t.publicReplyMessage.trim()) {
+                    replies = [t.publicReplyMessage.trim()];
+                }
+
+                return {
+                    keyword: t.keyword.trim().toLowerCase(),
+                    replyMessage: t.replyMessage.trim(),
+                    buttonTitle: t.buttonTitle ? t.buttonTitle.trim() : "",
+                    buttonUrl: t.buttonUrl ? t.buttonUrl.trim() : "",
+                    publicReplyMessages: replies,
+                };
+            });
 
         const updated = await ReelRule.findOneAndUpdate(
             { mediaId },

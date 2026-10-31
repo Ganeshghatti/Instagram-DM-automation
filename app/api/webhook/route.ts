@@ -70,7 +70,7 @@ async function processCommentEvent(commentData: any) {
         matchedTrigger.buttonTitle?.trim() && matchedTrigger.buttonUrl?.trim()
     );
 
-    // 1. Build DM Payload
+    // 1. DM payload
     const dmPayload = hasCtaButton
         ? {
             recipient: { comment_id: commentId },
@@ -105,7 +105,7 @@ async function processCommentEvent(commentData: any) {
         : matchedTrigger.replyMessage;
 
     try {
-        // 2. Dispatch DM
+        // 2. Send DM
         const dmRes = await fetch("https://graph.instagram.com/v25.0/me/messages", {
             method: "POST",
             headers: {
@@ -120,8 +120,12 @@ async function processCommentEvent(commentData: any) {
             throw new Error(dmData?.error?.message || "Graph API DM error");
         }
 
-        // 3. Dispatch Public Comment Reply (if configured)
-        if (matchedTrigger.publicReplyMessage?.trim()) {
+        // 3. Pick random public comment variant
+        const variations = matchedTrigger.publicReplyMessages || [];
+        if (variations.length > 0) {
+            const selectedPublicReply =
+                variations[Math.floor(Math.random() * variations.length)];
+
             try {
                 const publicRes = await fetch(
                     `https://graph.instagram.com/v25.0/${commentId}/replies`,
@@ -131,14 +135,12 @@ async function processCommentEvent(commentData: any) {
                             Authorization: `Bearer ${token}`,
                             "Content-Type": "application/json",
                         },
-                        body: JSON.stringify({
-                            message: matchedTrigger.publicReplyMessage.trim(),
-                        }),
+                        body: JSON.stringify({ message: selectedPublicReply }),
                     }
                 );
 
                 if (publicRes.ok) {
-                    logReplySummary += ` | Public: "${matchedTrigger.publicReplyMessage.trim()}"`;
+                    logReplySummary += ` | Public: "${selectedPublicReply}"`;
                 }
             } catch (publicErr: any) {
                 console.warn("Public reply dispatch warning:", publicErr.message);

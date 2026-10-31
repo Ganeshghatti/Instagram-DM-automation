@@ -3,7 +3,7 @@ export interface Trigger {
     replyMessage: string;
     buttonTitle?: string;
     buttonUrl?: string;
-    publicReplyMessage?: string;
+    publicReplyMessages?: string[];
 }
 
 export interface ReelRule {

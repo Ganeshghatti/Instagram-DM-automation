@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Plus, Trash2, X, Check, Link as LinkIcon, MessageCircle } from "lucide-react";
+import { Plus, Trash2, X, Check, Link as LinkIcon, Shuffle } from "lucide-react";
 import { IgMedia, ReelRule, Trigger } from "@/types/dashboard";
 
 interface TriggerModalProps {
@@ -30,7 +30,9 @@ export default function TriggerModal({
           replyMessage: t.replyMessage || "",
           buttonTitle: t.buttonTitle || "",
           buttonUrl: t.buttonUrl || "",
-          publicReplyMessage: t.publicReplyMessage || "",
+          publicReplyMessages: Array.isArray(t.publicReplyMessages)
+            ? t.publicReplyMessages
+            : [],
         }))
       );
       setIsActive(existingRule.isActive);
@@ -41,7 +43,11 @@ export default function TriggerModal({
           replyMessage: "Hey! Tap below to open the link from my Reel:",
           buttonTitle: "Open Link",
           buttonUrl: "",
-          publicReplyMessage: "Sent to your DMs! Check your message requests 📥",
+          publicReplyMessages: [
+            "Sent to your DMs! Check requests 📥",
+            "Delivered to your inbox! Check message requests 🚀",
+            "Sent over! Check your direct messages ✨",
+          ],
         },
       ]);
       setIsActive(true);
@@ -50,7 +56,7 @@ export default function TriggerModal({
 
   if (!reel) return null;
 
-  const updateTrigger = (index: number, field: keyof Trigger, value: string) => {
+  const updateTrigger = (index: number, field: keyof Trigger, value: any) => {
     const updated = [...triggers];
     updated[index] = { ...updated[index], [field]: value };
     setTriggers(updated);
@@ -140,7 +146,7 @@ export default function TriggerModal({
                       replyMessage: "",
                       buttonTitle: "",
                       buttonUrl: "",
-                      publicReplyMessage: "",
+                      publicReplyMessages: [],
                     },
                   ])
                 }
@@ -237,24 +243,28 @@ export default function TriggerModal({
                   </div>
                 </div>
 
-                {/* 3. Optional Public Comment Reply */}
+                {/* 3. Rotating Public Comment Replies (Spintax) */}
                 <div className="p-2.5 rounded bg-[#F7F8FA] border border-[#EBEDF0] space-y-1.5">
                   <div className="flex items-center justify-between">
                     <span className="flex items-center gap-1 text-[10px] font-bold uppercase text-[#65676B]">
-                      <MessageCircle className="h-3 w-3 text-[#31A24C]" /> 3. Public Comment Reply (Optional)
+                      <Shuffle className="h-3 w-3 text-[#31A24C]" /> 3. Rotating Public Replies (1 per line)
+                    </span>
+                    <span className="text-[10px] font-bold text-[#31A24C]">
+                      {item.publicReplyMessages?.length || 0} variations
                     </span>
                   </div>
-                  <input
-                    type="text"
-                    placeholder="e.g. Sent to your DMs! Check requests 📥"
-                    value={item.publicReplyMessage || ""}
-                    onChange={(e) =>
-                      updateTrigger(idx, "publicReplyMessage", e.target.value)
-                    }
-                    className="w-full px-2 py-1 rounded bg-white border border-[#CCD0D5] text-[11px] focus:outline-none focus:border-[#0866FF]"
+                  <textarea
+                    rows={3}
+                    placeholder={"Sent to your DMs! Check requests 📥\nDelivered! Check your inbox 🚀\nSent over! Check requests ✨"}
+                    value={(item.publicReplyMessages || []).join("\n")}
+                    onChange={(e) => {
+                      const lines = e.target.value.split("\n");
+                      updateTrigger(idx, "publicReplyMessages", lines);
+                    }}
+                    className="w-full px-2.5 py-1.5 rounded bg-white border border-[#CCD0D5] text-[11px] focus:outline-none focus:border-[#0866FF] font-mono leading-relaxed resize-none"
                   />
                   <p className="text-[10px] text-[#8A8D91]">
-                    Replies publicly under commenter&apos;s comment to notify them and boost algorithm rank.
+                    Randomly picks one variation per comment to avoid Meta spam detection.
                   </p>
                 </div>
               </div>
