@@ -148,7 +148,7 @@ export default function LogsTable({
 
             {/* Custom Popover Menu for Reels */}
             {dropdownOpen && (
-              <div className="absolute right-0 top-full mt-1.5 w-60 bg-white border border-[#DADDE1] rounded-lg shadow-xl py-1 z-50 max-h-64 overflow-y-auto">
+              <div className="absolute right-0 top-full mt-1.5 w-60 bg-white border border-[#DADDE1] rounded-sm shadow-xl py-1 z-50 max-h-64 overflow-y-auto">
                 <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[#65676B] border-b border-[#EBEDF0]">
                   Filter by Reel
                 </div>
